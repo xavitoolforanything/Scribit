@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teksto 2000 - Real-time Collaborative Text Editor</title>
+    <!-- Tailwind CSS for utility styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        msn: {
+                            blue: '#0055ea',
+                            teal: '#00a896',
+                            header: '#023e8a',
+                            lightBg: '#e6f0fa',
+                            panelBg: '#f0f4f8',
+                            border: '#84a5c6'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for classic icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts including Retro 2000s classics -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:ital,wght@0,400;0,700;1,400&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=VT323&family=Trebuchet+MS&display=swap" rel="stylesheet">
+    <!-- html2pdf for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Gun.js for Zero-Config / No-API-Key P2P Realtime Sync -->
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+
+    <style>
+        /* Classic 2000s System Fonts Defaults */
+        body {
+            font-family: 'Tahoma', 'Segoe UI', 'Verdana', sans-serif;
+            background-color: #d4ecee;
+            background-image: radial-gradient(#a3cbe0 15%, transparent 16%), radial-gradient(#a3cbe0 15%, transparent 16%);
+            background-size: 16px 16px;
+            background-position: 0 0, 8px 8px;
+        }
+
+        /* Y2K / MSN Style Glass & Bevel utilities */
+        .xp-glass-header {
+            background: linear-gradient(180deg, #1868dd 0%, #0849aa 48%, #003688 52%, #0045a5 100%);
+            border-bottom: 2px solid #002255;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+
+        .xp-panel {
+            background: linear-gradient(180deg, #ffffff 0%, #ebf3fb 100%);
+            border: 2px solid #6b93be;
+            border-radius: 6px 6px 0 0;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2), inset 1px 1px 0 #ffffff;
+        }
+
+        .xp-button {
+            background: linear-gradient(180deg, #ffffff 0%, #ece9d8 85%, #d8d2bd 100%);
+            border: 1px solid #003c74;
+            border-radius: 3px;
+            box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #b5b2a5;
+            text-shadow: 0 1px 0 #ffffff;
+        }
+        .xp-button:hover {
+            background: linear-gradient(180deg, #fff8e5 0%, #fce18d 85%, #f3cb52 100%);
+            border-color: #e2a100;
+        }
+        .xp-button:active {
+            background: linear-gradient(180deg, #dbd8c8 0%, #e3dfd0 100%);
+            box-shadow: inset 1px 1px 2px rgba(0,0,0,0.4);
+        }
+
+        .encarta-toolbar {
+            background: linear-gradient(180deg, #d3e2f4 0%, #abceef 100%);
+            border-bottom: 1px solid #729bc3;
+            border-top: 1px solid #ffffff;
+        }
+
+        .retro-inset-box {
+            background: #ffffff;
+            border-top: 2px solid #716f64;
+            border-left: 2px solid #716f64;
+            border-bottom: 2px solid #f1efe2;
+            border-right: 2px solid #f1efe2;
+        }
+
+        /* Additional Retro Font Definitions */
+        .font-tahoma { font-family: 'Tahoma', sans-serif; }
+        .font-trebuchet { font-family: 'Trebuchet MS', sans-serif; }
+        .font-comic { font-family: 'Comic Neue', 'Comic Sans MS', cursive; }
+        .font-courier { font-family: 'Courier Prime', 'Courier New', monospace; }
+        .font-pixel { font-family: 'VT323', monospace; letter-spacing: 0.5px; }
+
+        /* Custom Scrollbars in 2000s Slate/Silver style */
+        ::-webkit-scrollbar {
+            width: 14px;
+            height: 14px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #ece9d8;
+            border-left: 1px solid #999;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #ffffff 0%, #c2d5e3 50%, #99b8d2 100%);
+            border: 1px solid #003c74;
+            border-radius: 2px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #fce18d;
+        }
+    </style>
+</head>
+<body class="text-slate-900 min-h-screen flex flex-col p-1 sm:p-3">
+
+    <!-- Main Windows/MSN Container Frame -->
+    <div class="max-w-5xl w-full mx-auto flex-1 flex flex-col xp-panel overflow-hidden shadow-2xl">
+
+        <!-- Windows/MSN Title Bar -->
+        <header class="xp-glass-header px-3 py-1.5 flex items-center justify-between text-white select-none">
+            <!-- App Title & Room Identifier -->
+            <div class="flex items-center space-x-2">
+                <div class="p-1 bg-yellow-400 text-blue-900 rounded-sm font-bold text-xs flex items-center justify-center w-6 h-6 border border-white shadow-sm">
+                    <i class="fa-solid fa-butterfly text-emerald-600 text-sm"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-xs sm:text-sm tracking-wide text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] flex items-center gap-1.5">
+                        <span>Teksto Messenger 2000</span>
+                        <span class="text-[10px] font-normal bg-blue-800/80 px-1.5 py-0.5 rounded border border-blue-400/30">v2.4 P2P</span>
+                    </h1>
+                </div>
+            </div>
+
+            <!-- Window Control Buttons (Min, Max, Close) -->
+            <div class="flex items-center space-x-1">
+                <button class="w-5 h-5 bg-gradient-to-b from-blue-400 to-blue-700 hover:from-blue-300 hover:to-blue-600 border border-white/80 rounded-sm text-[10px] text-white font-bold flex items-center justify-center shadow">_</button>
+                <button class="w-5 h-5 bg-gradient-to-b from-blue-400 to-blue-700 hover:from-blue-300 hover:to-blue-600 border border-white/80 rounded-sm text-[10px] text-white font-bold flex items-center justify-center shadow">□</button>
+                <button class="w-5 h-5 bg-gradient-to-b from-red-400 to-red-700 hover:from-red-300 hover:to-red-600 border border-white/80 rounded-sm text-[10px] text-white font-bold flex items-center justify-center shadow">✕</button>
+            </div>
+        </header>
+
+        <!-- Encarta / MSN Navigation Toolbar -->
+        <div class="encarta-toolbar px-3 py-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <!-- Document Room Banner -->
+            <div class="flex items-center space-x-2 bg-white/70 px-2 py-1 rounded border border-slate-400">
+                <i class="fa-solid fa-book-bookmark text-amber-600"></i>
+                <p id="roomDisplay" class="font-bold text-slate-800 flex items-center gap-1">
+                    <span>Document Workspace:</span>
+                    <span id="roomName" class="text-blue-800 font-mono bg-yellow-100 px-1 border border-yellow-300 rounded">global</span>
+                </p>
+            </div>
+
+            <!-- Toolbar Action Buttons -->
+            <div class="flex flex-wrap items-center gap-1.5">
+                <!-- Active Users Toggle Button -->
+                <button id="usersToggleBtn" class="xp-button px-2 py-1 flex items-center space-x-1 text-slate-800 font-medium">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <i class="fa-solid fa-users text-blue-700"></i>
+                    <span>Buddy List (<span id="onlineCount">1</span>)</span>
+                </button>
+
+                <!-- Font Selector Dropdown -->
+                <div class="relative">
+                    <button id="fontMenuBtn" title="Change Font" class="xp-button px-2 py-1 text-slate-800 font-medium flex items-center gap-1">
+                        <i class="fa-solid fa-font text-indigo-700"></i>
+                        <span>Fonts</span>
+                        <i class="fa-solid fa-caret-down text-[10px]"></i>
+                    </button>
+                    <div id="fontDropdown" class="hidden absolute right-0 mt-1 w-48 bg-slate-100 rounded border-2 border-slate-500 shadow-xl py-1 z-50 text-xs">
+                        <button onclick="setFont('font-tahoma')" class="w-full text-left px-3 py-1.5 hover:bg-blue-600 hover:text-white font-tahoma">
+                            <span>Tahoma (MS Default)</span>
+                        </button>
+                        <button onclick="setFont('font-trebuchet')" class="w-full text-left px-3 py-1.5 hover:bg-blue-600 hover:text-white font-trebuchet">
+                            <span>Trebuchet MS (Encarta)</span>
+                        </button>
+                        <button onclick="setFont('font-comic')" class="w-full text-left px-3 py-1.5 hover:bg-blue-600 hover:text-white font-comic">
+                            <span>Comic Sans (Fun)</span>
+                        </button>
+                        <button onclick="setFont('font-courier')" class="w-full text-left px-3 py-1.5 hover:bg-blue-600 hover:text-white font-courier">
+                            <span>Courier Prime (Mono)</span>
+                        </button>
+                        <button onclick="setFont('font-pixel')" class="w-full text-left px-3 py-1.5 hover:bg-blue-600 hover:text-white font-pixel text-sm">
+                            <span>VT323 Pixel (Retro Terminal)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Export to PDF Button -->
+                <button id="exportPdfBtn" title="Export to PDF" class="xp-button px-2 py-1 text-slate-800 font-medium flex items-center gap-1">
+                    <i class="fa-solid fa-file-pdf text-red-600"></i>
+                    <span>Export</span>
+                </button>
+
+                <!-- Switch Room Button -->
+                <button id="changeRoomBtn" title="Switch Document Room" class="xp-button px-2 py-1 text-slate-800 font-medium flex items-center gap-1">
+                    <i class="fa-solid fa-folder-open text-amber-600"></i>
+                    <span>Open...</span>
+                </button>
+
+                <!-- Copy Text Button -->
+                <button id="copyBtn" title="Copy Text to Clipboard" class="xp-button px-2 py-1 text-slate-800 font-medium flex items-center gap-1">
+                    <i class="fa-regular fa-copy text-teal-700"></i>
+                    <span>Copy</span>
+                </button>
+
+                <!-- Dark/Classic Theme Toggle -->
+                <button id="themeToggleBtn" title="Toggle Theme" class="xp-button px-2 py-1 text-slate-800 font-medium flex items-center gap-1">
+                    <i class="fa-solid fa-palette text-purple-700"></i>
+                    <span>Mode</span>
+                </button>
+
+                <!-- User Settings Button -->
+                <button id="usernameBtn" class="xp-button px-2 py-1 flex items-center space-x-1.5 font-medium">
+                    <div id="userAvatar" class="w-4 h-4 rounded-sm bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold border border-white">U</div>
+                    <span id="usernameDisplay" class="max-w-[90px] truncate">User</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Active Users Buddy List Panel (Collapsible) -->
+        <div id="usersPanel" class="hidden border-b-2 border-slate-400 bg-blue-50/90 px-4 py-2 text-xs">
+            <div class="flex items-center justify-between max-w-4xl mx-auto">
+                <span class="text-blue-900 font-bold flex items-center gap-1">
+                    <i class="fa-solid fa-address-book text-blue-600"></i> MSN Online Buddies:
+                </span>
+                <div id="activeUsersList" class="flex flex-wrap gap-2 items-center">
+                    <!-- User pills injected via JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification Banner Toast -->
+        <div id="toast" class="fixed bottom-10 right-6 bg-yellow-100 text-slate-900 border-2 border-slate-700 px-3 py-2 rounded shadow-2xl text-xs font-bold translate-y-10 opacity-0 transition-all duration-300 z-50 pointer-events-none flex items-center gap-2">
+            <i id="toastIcon" class="fa-solid fa-circle-info text-blue-600 text-sm"></i>
+            <span id="toastMessage">Copied to clipboard!</span>
+        </div>
+
+        <!-- Main Workspace (Notepad / Encarta Editor Frame) -->
+        <main class="flex-1 flex flex-col p-3 bg-slate-200">
+            <div class="flex-1 flex flex-col relative retro-inset-box p-2">
+                <textarea id="editor"
+                    placeholder="Type your notes, encyclopedic drafts, or messages here... All edits synchronize live across MSN buddies without API keys."
+                    spellcheck="true"
+                    class="w-full h-full flex-1 bg-white border-0 resize-none focus:ring-0 focus:outline-none text-slate-900 placeholder-slate-400 text-base leading-relaxed p-2 font-tahoma"
+                    autofocus></textarea>
+            </div>
+        </main>
+
+        <!-- Windows XP / Encarta Footer Status Bar -->
+        <footer class="border-t-2 border-slate-400 px-3 py-1 text-xs text-slate-700 bg-slate-200 flex items-center justify-between select-none">
+            <!-- Left: Save Status -->
+            <div class="flex items-center space-x-2 bg-slate-100 px-2 py-0.5 border border-slate-400 rounded-sm">
+                <span id="statusIndicator" class="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-slate-600"></span>
+                <span id="statusText" class="font-mono text-[11px] font-semibold">Synced</span>
+            </div>
+
+            <!-- Right: Word & Char Stats -->
+            <div class="flex items-center space-x-3 font-mono text-[11px] bg-slate-100 px-2 py-0.5 border border-slate-400 rounded-sm">
+                <div><span id="wordCount">0</span> words</div>
+                <div class="text-slate-400">|</div>
+                <div><span id="charCount">0</span> chars</div>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Username Selection Modal -->
+    <div id="usernameModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="xp-panel max-w-sm w-full p-4 shadow-2xl">
+            <div class="xp-glass-header px-2 py-1 -mx-4 -mt-4 mb-3 text-white font-bold text-xs flex justify-between items-center">
+                <span>MSN Messenger - Edit Display Name</span>
+                <button onclick="closeUsernameModal()" class="text-white hover:text-red-200 font-bold">✕</button>
+            </div>
+            <p class="text-xs text-slate-700 mb-3">Type a nickname for your MSN Buddy card:</p>
+
+            <form id="usernameForm" onsubmit="event.preventDefault(); saveUsername();">
+                <div class="mb-4">
+                    <input type="text" id="usernameInput" maxlength="20" required placeholder="e.g. CoolGuy2000, Scribe"
+                           class="w-full px-2 py-1 retro-inset-box text-sm focus:outline-none font-tahoma">
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="closeUsernameModal()" class="xp-button px-3 py-1 text-xs font-bold">Cancel</button>
+                    <button type="submit" class="xp-button px-4 py-1 text-xs font-bold text-blue-900">OK</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Room Switcher Modal -->
+    <div id="roomModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 hidden">
+        <div class="xp-panel max-w-sm w-full p-4 shadow-2xl">
+            <div class="xp-glass-header px-2 py-1 -mx-4 -mt-4 mb-3 text-white font-bold text-xs flex justify-between items-center">
+                <span>Encarta Workspace Switcher</span>
+                <button onclick="closeRoomModal()" class="text-white hover:text-red-200 font-bold">✕</button>
+            </div>
+            <p class="text-xs text-slate-700 mb-3">Enter a shared room key to sync documents with peers:</p>
+
+            <form id="roomForm" onsubmit="event.preventDefault(); switchRoom();">
+                <div class="mb-4">
+                    <input type="text" id="roomInput" maxlength="30" required placeholder="e.g. encyclopedia-notes"
+                           class="w-full px-2 py-1 retro-inset-box text-sm focus:outline-none font-mono">
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="closeRoomModal()" class="xp-button px-3 py-1 text-xs font-bold">Cancel</button>
+                    <button type="submit" class="xp-button px-4 py-1 text-xs font-bold text-blue-900">Open Room</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application Script (Zero-Config Gun.js engine) -->
+    <script>
+        // Initialize Gun with public community relay servers (No API keys needed)
+        const gun = Gun([
+            'https://gun-manhattan.herokuapp.com/gun',
+            'https://peer.wallie.io/gun'
+        ]);
+
+        // Client State
+        const myUserId = 'user_' + Math.random().toString(36).substring(2, 9);
+        let currentRoom = getUrlParam('room') || 'global';
+        let username = localStorage.getItem('syncpad_username') || generateRandomUsername();
+        let isRemoteUpdate = false;
+        let saveTimeout = null;
+        let activeBuddies = {};
+
+        // Gun Node References
+        let docNode = null;
+        let presenceNode = null;
+
+        // UI Elements
+        const editor = document.getElementById('editor');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const wordCount = document.getElementById('wordCount');
+        const charCount = document.getElementById('charCount');
+        const usernameDisplay = document.getElementById('usernameDisplay');
+        const userAvatar = document.getElementById('userAvatar');
+        const roomName = document.getElementById('roomName');
+        const onlineCount = document.getElementById('onlineCount');
+        const activeUsersList = document.getElementById('activeUsersList');
+
+        // Font Switcher Logic
+        window.setFont = function(fontClass) {
+            editor.classList.remove('font-tahoma', 'font-trebuchet', 'font-comic', 'font-courier', 'font-pixel');
+            editor.classList.add(fontClass);
+            localStorage.setItem('syncpad_font', fontClass);
+            document.getElementById('fontDropdown').classList.add('hidden');
+        };
+
+        function initFont() {
+            const savedFont = localStorage.getItem('syncpad_font') || 'font-tahoma';
+            setFont(savedFont);
+        }
+
+        // PDF Export Logic
+        function exportToPDF() {
+            const textContent = editor.value;
+            if (!textContent.trim()) {
+                showToast('Document is empty!');
+                return;
+            }
+
+            showToast('Generating PDF...');
+
+            const element = document.createElement('div');
+            element.className = `p-8 text-slate-900 bg-white ${editor.className}`;
+            element.style.whiteSpace = 'pre-wrap';
+            element.style.wordBreak = 'break-word';
+            element.textContent = textContent;
+
+            const opt = {
+                margin:       15,
+                filename:     `${currentRoom || 'document'}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                showToast('PDF downloaded!');
+            }).catch(err => {
+                console.error("PDF generation failed:", err);
+                showToast('Failed to generate PDF');
+            });
+        }
+
+        // Helper: Get Query Params
+        function getUrlParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        // Helper: Generate default 2000s names
+        function generateRandomUsername() {
+            const adjectives = ['Cyber', 'Neon', 'Cool', 'Matrix', 'Retro', 'MSN', 'Encarta'];
+            const nouns = ['Surfer', 'Buddy', 'User2000', 'XpWriter', 'PixelGamer', 'Netizen'];
+            const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+            const noun = nouns[Math.floor(Math.random() * nouns.length)];
+            return `${adj}_${noun}`;
+        }
+
+        function stringToColor(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const colors = ['#0055ea', '#8b5cf6', '#00a896', '#d97706', '#10b981', '#0284c7', '#c026d3'];
+            return colors[Math.abs(hash) % colors.length];
+        }
+
+        // Subscribe to Gun room data
+        function setupRoomSubscription() {
+            // Document node live binding
+            docNode = gun.get('teksto_app_v2').get('rooms').get(currentRoom);
+
+            docNode.get('text').on((val) => {
+                if (typeof val === 'string' && editor.value !== val) {
+                    isRemoteUpdate = true;
+                    const selectionStart = editor.selectionStart;
+                    const selectionEnd = editor.selectionEnd;
+
+                    editor.value = val;
+
+                    try {
+                        editor.setSelectionRange(selectionStart, selectionEnd);
+                    } catch(e) {}
+
+                    updateStats();
+                    isRemoteUpdate = false;
+                    setStatus('saved', 'Synced');
+                }
+            });
+
+            // Presence binding
+            activeBuddies = {};
+            presenceNode = gun.get('teksto_app_v2').get('presence').get(currentRoom);
+
+            presenceNode.map().on((userData, id) => {
+                if (!userData) {
+                    delete activeBuddies[id];
+                } else if (userData.lastSeen && (Date.now() - userData.lastSeen) < 35000) {
+                    activeBuddies[id] = userData;
+                } else {
+                    delete activeBuddies[id];
+                }
+                updatePresenceUI();
+            });
+
+            startHeartbeat();
+        }
+
+        function startHeartbeat() {
+            updateHeartbeat();
+            setInterval(updateHeartbeat, 15000);
+        }
+
+        function updateHeartbeat() {
+            if (presenceNode) {
+                presenceNode.get(myUserId).put({
+                    username: username,
+                    lastSeen: Date.now()
+                });
+            }
+        }
+
+        function saveDocumentRemote(text) {
+            if (isRemoteUpdate || !docNode) return;
+            setStatus('saving', 'Saving...');
+            docNode.get('text').put(text, (ack) => {
+                if (ack.err) {
+                    setStatus('error', 'Sync error');
+                } else {
+                    setStatus('saved', 'Saved');
+                }
+            });
+        }
+
+        function setStatus(state, message) {
+            statusText.textContent = message;
+            statusIndicator.className = "w-2.5 h-2.5 rounded-full transition-colors border border-slate-600 ";
+
+            if (state === 'saved') {
+                statusIndicator.classList.add('bg-emerald-500');
+            } else if (state === 'saving') {
+                statusIndicator.classList.add('bg-amber-500', 'animate-pulse');
+            } else if (state === 'error') {
+                statusIndicator.classList.add('bg-rose-500');
+            } else {
+                statusIndicator.classList.add('bg-slate-400');
+            }
+        }
+
+        function updatePresenceUI() {
+            const now = Date.now();
+            const users = [];
+
+            Object.keys(activeBuddies).forEach(id => {
+                const u = activeBuddies[id];
+                if (u && u.lastSeen && (now - u.lastSeen) < 35000) {
+                    users.push({ id: id, name: u.username || 'Buddy' });
+                }
+            });
+
+            if (users.length === 0) {
+                users.push({ id: myUserId, name: username });
+            }
+
+            onlineCount.textContent = users.length;
+            activeUsersList.innerHTML = '';
+
+            users.forEach(u => {
+                const color = stringToColor(u.name);
+                const isSelf = u.id === myUserId;
+
+                const pill = document.createElement('div');
+                pill.className = "flex items-center space-x-1 px-2 py-0.5 rounded bg-white border border-slate-400 shadow-xs text-slate-800 text-[11px] font-tahoma";
+
+                const initial = u.name.charAt(0).toUpperCase();
+                pill.innerHTML = `
+                    <span class="w-3.5 h-3.5 rounded-sm text-[9px] font-bold text-white flex items-center justify-center" style="background-color: ${color}">${initial}</span>
+                    <span class="font-medium">${escapeHtml(u.name)}${isSelf ? ' (You)' : ''}</span>
+                `;
+                activeUsersList.appendChild(pill);
+            });
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function updateStats() {
+            const text = editor.value || '';
+            charCount.textContent = text.length;
+
+            const trimmed = text.trim();
+            const words = trimmed ? trimmed.split(/\s+/).length : 0;
+            wordCount.textContent = words;
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMessage');
+            toastMsg.textContent = msg;
+
+            toast.classList.remove('translate-y-10', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-10', 'opacity-0');
+            }, 2500);
+        }
+
+        window.saveUsername = function() {
+            const input = document.getElementById('usernameInput').value.trim();
+            if (input) {
+                username = input;
+                localStorage.setItem('syncpad_username', username);
+                updateUserDisplay();
+                updateHeartbeat();
+                closeUsernameModal();
+                showToast(`MSN Nickname set: ${username}`);
+            }
+        };
+
+        function updateUserDisplay() {
+            usernameDisplay.textContent = username;
+            userAvatar.textContent = username.charAt(0).toUpperCase();
+            userAvatar.style.backgroundColor = stringToColor(username);
+        }
+
+        window.closeUsernameModal = function() {
+            document.getElementById('usernameModal').classList.add('hidden');
+        };
+
+        window.switchRoom = function() {
+            const roomInput = document.getElementById('roomInput').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+            if (roomInput) {
+                currentRoom = roomInput;
+                roomName.textContent = currentRoom;
+
+                const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + currentRoom;
+                window.history.pushState({path: newUrl}, '', newUrl);
+
+                editor.value = '';
+                updateStats();
+                setupRoomSubscription();
+                closeRoomModal();
+                showToast(`Opened document: ${currentRoom}`);
+            }
+        };
+
+        window.closeRoomModal = function() {
+            document.getElementById('roomModal').classList.add('hidden');
+        };
+
+        function toggleTheme() {
+            const isDark = document.body.classList.toggle('dark-retro');
+            if (isDark) {
+                editor.style.backgroundColor = '#1e1e1e';
+                editor.style.color = '#00ff66';
+                showToast('Switched to Retro Terminal Mode');
+            } else {
+                editor.style.backgroundColor = '#ffffff';
+                editor.style.color = '#0f172a';
+                showToast('Switched to Classic Windows XP Mode');
+            }
+        }
+
+        function setupEventListeners() {
+            editor.addEventListener('input', () => {
+                updateStats();
+                setStatus('saving', 'Saving...');
+
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(() => {
+                    saveDocumentRemote(editor.value);
+                }, 300);
+            });
+
+            document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
+
+            document.getElementById('copyBtn').addEventListener('click', () => {
+                if (!editor.value) return;
+
+                editor.select();
+                document.execCommand('copy');
+                window.getSelection().removeAllRanges();
+
+                showToast('Copied text to clipboard!');
+            });
+
+            document.getElementById('exportPdfBtn').addEventListener('click', exportToPDF);
+
+            document.getElementById('fontMenuBtn').addEventListener('click', () => {
+                document.getElementById('fontDropdown').classList.toggle('hidden');
+            });
+
+            document.addEventListener('click', (e) => {
+                const fontMenu = document.getElementById('fontMenuBtn');
+                const fontDropdown = document.getElementById('fontDropdown');
+                if (fontMenu && fontDropdown && !fontMenu.contains(e.target) && !fontDropdown.contains(e.target)) {
+                    fontDropdown.classList.add('hidden');
+                }
+            });
+
+            document.getElementById('usernameBtn').addEventListener('click', () => {
+                document.getElementById('usernameInput').value = username;
+                document.getElementById('usernameModal').classList.remove('hidden');
+            });
+
+            document.getElementById('changeRoomBtn').addEventListener('click', () => {
+                document.getElementById('roomInput').value = currentRoom;
+                document.getElementById('roomModal').classList.remove('hidden');
+            });
+
+            document.getElementById('usersToggleBtn').addEventListener('click', () => {
+                document.getElementById('usersPanel').classList.toggle('hidden');
+            });
+        }
+
+        // Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            roomName.textContent = currentRoom;
+            initFont();
+            updateUserDisplay();
+            setupEventListeners();
+            updateStats();
+            setupRoomSubscription();
+        });
+    </script>
+</body>
+</html>
